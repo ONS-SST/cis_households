@@ -7,7 +7,7 @@ from cishouseholds.derive import assign_isin_list
 from cishouseholds.derive import derive_ctpattern
 from cishouseholds.derive import mean_across_columns
 from cishouseholds.extract import read_csv_to_pyspark_df
-from cishouseholds.pipeline.declare_ETL import add_ETL
+from cishouseholds.pipeline.declare import add_ETL
 from cishouseholds.pipeline.input_variable_names import swab_variable_name_map
 from cishouseholds.pipeline.validation_schema import swab_validation_schema
 from cishouseholds.pyspark_utils import convert_cerberus_schema_to_pyspark

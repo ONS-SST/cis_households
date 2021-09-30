@@ -1,4 +1,4 @@
-from cishouseholds.pipeline.declare_ETL import add_ETL
+from cishouseholds.pipeline.declare import add_ETL
 from cishouseholds.pyspark_utils import get_or_create_spark_session
 
 

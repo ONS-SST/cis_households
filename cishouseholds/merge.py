@@ -5,6 +5,8 @@ from pyspark.sql import DataFrame
 from pyspark.sql import functions as F
 from pyspark.sql.window import Window
 
+from cishouseholds.pipeline.declare import register_merge_function
+
 
 def assign_count_of_occurrences_column(df: DataFrame, reference_column: str, column_name_to_assign: str):
     """
@@ -96,7 +98,7 @@ def flag_columns_different_to_ref(
             1,
         ).otherwise(
             None
-        ),  # drop rows after first where diff vs visit is
+        ),  # drop rows after first where diff vs visit is different
     )
     return df
 
@@ -127,7 +129,7 @@ def create_count_group(df: DataFrame, group_column: str, reference_column: str, 
 
 def check_consistent_data(df: DataFrame, check_column1: str, check_column2: str, group_by_column: str):
     """
-    check consistency of multipl columns and create seperate joined dataframe of chosen columns
+    check consistency of multiple columns and create seperate joined dataframe of chosen columns
 
     Parameters
     ----------
@@ -309,6 +311,7 @@ def assign_merge_process_group_flag(
     ).drop("count_barcode_labs_flag", "count_barcode_voyager_flag")
 
 
+@register_merge_function("many_to_one_swab_flag")
 def many_to_one_swab_flag(df: DataFrame, column_name_to_assign: str, group_by_column: str, ordering_columns: list):
     """
     Many (Voyager) to one (swab) matching process.
@@ -429,6 +432,7 @@ def many_to_one_swab_flag(df: DataFrame, column_name_to_assign: str, group_by_co
     )
 
 
+@register_merge_function("many_to_one_antibody_flag")
 def many_to_one_antibody_flag(df: DataFrame, column_name_to_assign: str, group_by_column: str):
     """
     Many (Voyager) to one (antibody) matching process. Creates a flag to identify rows which doesn't match
@@ -460,6 +464,7 @@ def many_to_one_antibody_flag(df: DataFrame, column_name_to_assign: str, group_b
     return df.drop("antibody_barcode_cleaned_count", "identify_many_to_one_antibody_flag")
 
 
+@register_merge_function("many_to_many_flag")
 def many_to_many_flag(
     df: DataFrame,
     drop_flag_column_name_to_assign: str,
@@ -568,7 +573,7 @@ def create_inconsistent_data_drop_flag(
 
     """
     df = df.withColumn(
-        "dr2",
+        "inconsistent_record",
         F.when(
             (F.col(selection_column) == 1)
             & ((F.col(item1_count_column) != F.col("count")) | (F.col(item2_count_column) != F.col("count"))),
@@ -579,6 +584,7 @@ def create_inconsistent_data_drop_flag(
     return df
 
 
+@register_merge_function("one_to_many_bloods_flag")
 def one_to_many_bloods_flag(df: DataFrame, column_name_to_assign: str, group_by_column: str):
     """
     steps to complete:
@@ -613,7 +619,7 @@ def one_to_many_bloods_flag(df: DataFrame, column_name_to_assign: str, group_by_
         selection_column="identify_one_to_many_bloods_flag",
         reference_column=reference_col_name,
         check_column="diff_interval_hours",
-        column_name_to_assign="dr1",
+        column_name_to_assign="diff_int_different_to_first",
     )
 
     dfj = check_consistent_data(df=df, check_column1="siemens", check_column2="tdi", group_by_column="group")
@@ -635,7 +641,10 @@ def one_to_many_bloods_flag(df: DataFrame, column_name_to_assign: str, group_by_
         F.when(
             (
                 (F.col("identify_one_to_many_bloods_flag") == 1)
-                & (((F.col("dr2") == 1) & (F.col("row_num") != 1)) | (F.col("dr1") == 1))
+                & (
+                    ((F.col("inconsistent_record") == 1) & (F.col("row_num") != 1))
+                    | (F.col("diff_int_different_to_first") == 1)
+                )
             ),
             1,
         ).otherwise(None),
@@ -655,16 +664,15 @@ def one_to_many_bloods_flag(df: DataFrame, column_name_to_assign: str, group_by_
         "out_of_date_range_blood",
         "identify_one_to_many_bloods_flag",
         "group",
-        "d1_ref",
         "count",
         "row_num",
-        "d1_ref",
-        "dr1",
-        "dr2",
+        "diff_int_different_to_first",
+        "inconsistent_record",
     )
 
 
-def one_to_many_swabs(
+@register_merge_function("merge_one_to_many_swabs")
+def merge_one_to_many_swabs(
     df: DataFrame,
     out_of_date_range_flag: str,
     count_barcode_labs_column_name: str,
