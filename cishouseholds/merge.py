@@ -671,8 +671,8 @@ def one_to_many_bloods_flag(df: DataFrame, column_name_to_assign: str, group_by_
     )
 
 
-@register_merge_function("merge_one_to_many_swabs")
-def merge_one_to_many_swabs(
+@register_merge_function("one_to_many_swabs_flag")
+def one_to_many_swabs_flag(
     df: DataFrame,
     out_of_date_range_flag: str,
     count_barcode_labs_column_name: str,
