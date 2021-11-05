@@ -249,23 +249,6 @@ def assign_time_difference_and_flag_if_outside_interval(
     )
 
 
-# def assign_unique_identifier_column(df: DataFrame, column_name_to_assign: str, ordering_columns: list):
-#    """
-#    Derive column with unique identifier for each record.
-#    Parameters
-#    ----------
-#    df
-#    column_name_to_assign
-#        Name of column to be created
-#    ordering_columns
-#        Columns to define order of records to assign an integer value from 1 onwards
-#        This order is mostly for comparison/proving purposes with stata output
-#    """
-#
-#    window = Window.orderBy(*ordering_columns)
-#    return df.withColumn(column_name_to_assign, F.row_number().over(window))
-
-
 def join_dataframes(df1: DataFrame, df2: DataFrame, on: Union[str, List[str]], join_type: str = "outer"):
     """
     Join two datasets.
@@ -514,13 +497,9 @@ def many_to_many_flag(
         .cast("integer"),
     )
 
-    # record_processed set to 1 if evaluated and drop flag to be set, 0 if evaluated and drop flag to be None,
-    # otherwise None
     df = df.withColumn("record_processed", F.lit(None).cast("integer"))
 
-    df = df.withColumn(
-        drop_flag_column_name_to_assign, F.lit(None).cast("integer")
-    )  # BUG Needed in case the while loop does not execute
+    df = df.withColumn(drop_flag_column_name_to_assign, F.lit(None).cast("integer"))
 
     while df.filter(df.record_processed.isNull()).count() > 0:
         window = Window.partitionBy(group_by_column, "record_processed").orderBy(*ordering_columns)
@@ -763,5 +742,4 @@ def merge_one_to_many_swab_time_difference_logic(
             time_difference_logic_flag_column_name, F.when(F.col("Ranking") != 1, 1).otherwise(None).cast("integer")
         )
         .drop("Ranking")
-        # .orderBy(*ordering_columns) # commented out for optimisation
     )

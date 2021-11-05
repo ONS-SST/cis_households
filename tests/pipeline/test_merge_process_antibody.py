@@ -1,6 +1,5 @@
-import pytest
-from chispa import assert_df_equality
-
+# import pytest
+# from chispa import assert_df_equality
 from cishouseholds.edit import re_cast_column_if_null
 from cishouseholds.pipeline.merge_process import execute_merge_specific_antibody
 
@@ -26,7 +25,7 @@ def test_merge_process_antibody(spark_session):
                 date_received string,
                 antibody_result_recorded_datetime string,
                 antibody_test_result_classification string,
-                siemens string,
+                assay_siemens string,
                 tdi string"""
     data = [
         ("ONS0001", "1", "2020-01-01", "2020-01-02", "2020-01-04 12:00:00", "positive", "negative", "positive"),
@@ -535,7 +534,7 @@ def test_merge_process_antibody(spark_session):
             None,
         ),
     ]
-    expected_df = spark_session.createDataFrame(data, schema=schema)
+    # expected_df = spark_session.createDataFrame(data, schema=schema)
 
     output_df = execute_merge_specific_antibody(
         survey_df=df_input_survey,
@@ -552,8 +551,12 @@ def test_merge_process_antibody(spark_session):
     output_df = re_cast_column_if_null(output_df, desired_column_type="integer")
 
     # assert_df_equality(expected_df, output_df)
+<<<<<<< HEAD
     if len(output_df.columns > 0):
         result = True
     else:
         result = False
     assert result
+=======
+    assert len(output_df.columns) != 0 and output_df.count() != 0
+>>>>>>> main

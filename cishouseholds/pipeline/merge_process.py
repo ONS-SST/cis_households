@@ -16,7 +16,7 @@ def merge_process_preparation(
     barcode_column_name: str,
     visit_date_column_name: str,
     received_date_column_name: str,
-    merge_type_neccessary_columns: List[str],
+    merge_type_necessary_columns: List[str],
 ) -> DataFrame:
     """
     Common function to either Swab/Antibody merge that executes the functions for assigning an unique identifier
@@ -38,14 +38,7 @@ def merge_process_preparation(
     ----
     It is assumed that the barcode column name for survey and labs is the same.
     """
-    # survey_df = M.assign_unique_identifier_column(
-    #    survey_df, "unique_participant_response_id", ordering_columns=[barcode_column_name]
-    # )
     survey_df = M.assign_count_of_occurrences_column(survey_df, barcode_column_name, "count_barcode_voyager")
-
-    # labs_df = M.assign_unique_identifier_column(
-    #    labs_df, "unique_id_" + merge_type, ordering_columns=[barcode_column_name]
-    # )
 
     labs_df = M.assign_count_of_occurrences_column(labs_df, barcode_column_name, "count_barcode_" + merge_type)
 
@@ -59,14 +52,12 @@ def merge_process_preparation(
         interval_upper_bound = 240
         id_type = "unique_antibody_test_id"
 
-    print("necessary: ", merge_type_neccessary_columns)
+    df = outer_df.select(*set(merge_type_necessary_columns))
 
-    df = outer_df.select(*set(merge_type_neccessary_columns))
+    merge_type_necessary_columns.remove("unique_participant_response_id")
+    merge_type_necessary_columns.remove(id_type)
 
-    merge_type_neccessary_columns.remove("unique_participant_response_id")
-    merge_type_neccessary_columns.remove(id_type)
-
-    df_non_specific_merge = outer_df.drop(*merge_type_neccessary_columns)
+    df_non_specific_merge = outer_df.drop(*merge_type_necessary_columns)
 
     df = M.assign_time_difference_and_flag_if_outside_interval(
         df=df,
@@ -117,13 +108,13 @@ def assign_merge_process_group_flags_and_filter(df: DataFrame, merge_type: str):
     return many_to_many_df, one_to_many_df, many_to_one_df, one_to_one_df
 
 
-def merge_process_validation(outer_df: DataFrame, merge_type: str, barcode_column_name: str) -> DataFrame:
+def merge_process_validation(df: DataFrame, merge_type: str, barcode_column_name: str) -> DataFrame:
     """
     Once the merging, preparation and one_to_many, many_to_one and many_to_many functions are executed,
     this function will apply the validation function after identifying what type of merge it is.
     Parameters
     ----------
-    outer_df
+    df
     merge_type
         either swab or antibody, no other value accepted.
     barcode_column_name
@@ -133,8 +124,8 @@ def merge_process_validation(outer_df: DataFrame, merge_type: str, barcode_colum
     count_barcode_voyager_condition = [">1", "==1", ">1"]
 
     for element in zip(merge_type_list, count_barcode_labs_condition, count_barcode_voyager_condition):
-        outer_df = M.assign_merge_process_group_flag(
-            df=outer_df,
+        df = M.assign_merge_process_group_flag(
+            df=df,
             column_name_to_assign=element[0] + "_" + merge_type,
             out_of_date_range_flag="out_of_date_range_" + merge_type,
             count_barcode_labs_column_name="count_barcode_" + merge_type,
@@ -148,16 +139,16 @@ def merge_process_validation(outer_df: DataFrame, merge_type: str, barcode_colum
     failed_column_names = ["failed_1tom_", "failed_mto1_", "failed_mtom_"]
     failed_column_names_syntax = [element + merge_type for element in failed_column_names]
 
-    match_type_colums_syntax = [element + "_" + merge_type for element in merge_type_list]
+    match_type_columns_syntax = [element + "_" + merge_type for element in merge_type_list]
 
-    outer_df = validate_merge_logic(
-        df=outer_df,
+    df = validate_merge_logic(
+        df=df,
         flag_column_names=flag_column_names_syntax,
         failed_column_names=failed_column_names_syntax,
-        match_type_columns=match_type_colums_syntax,
+        match_type_columns=match_type_columns_syntax,
         group_by_column=barcode_column_name,
     )
-    return outer_df
+    return df
 
 
 def execute_merge_specific_swabs(
@@ -188,7 +179,7 @@ def execute_merge_specific_swabs(
         barcode_column_name=barcode_column_name,
         visit_date_column_name=visit_date_column_name,
         received_date_column_name=received_date_column_name,
-        merge_type_neccessary_columns=[
+        merge_type_necessary_columns=[
             "barcode",
             "unique_participant_response_id",
             "unique_pcr_test_id",
@@ -259,7 +250,7 @@ def execute_merge_specific_swabs(
     outer_df.show()
 
     outer_df = merge_process_validation(
-        outer_df=outer_df,
+        df=outer_df,
         merge_type="swab",
         barcode_column_name=barcode_column_name,
     )
@@ -325,7 +316,7 @@ def execute_merge_specific_antibody(
         column_name_to_assign="drop_flag_1tom_" + merge_type,
         group_by_column=barcode_column_name,
         diff_interval_hours="diff_vs_visit_hr",
-        siemens_column="assay_siemens",
+        siemens_column="siemens_antibody_test_result_value",
         tdi_column="antibody_test_result_classification",
         visit_date=visit_date_column_name,
     )
@@ -389,25 +380,26 @@ def merge_process_filtering(
     barcode_column_name: str,
     lab_columns_list: List[str],
     merge_combination: List[str] = ["1tom", "mto1", "mtom"],
-    drop_list_columns: List[str] = [],
-) -> DataFrame:
+):
     """
     Final filtering process of merging generating successful merges ...
     Parameters
     ----------
     df
-        input dataframe with drop, merge_type and failed to merge columns
+        Input dataframe with drop, merge_type and failed to merge columns
     merge_type
-        either swab or antibody, anything else will fail.
+        Must be swab or antibody
     lab_columns_list
-        lab columns to be dropped to be fed back to iqvia records
+        Names of all columns associated only with the lab input
     merge_combination
-        only elements in the list accepted 1tom, mto1, mtom
-    drop_list_columns
-        present in a list the exact name of columns to be dropped for the final
-        3 dataframes df_best_match, df_not_best_match, df_failed_records
-    Notes: this function will return 2 dataframes, one with best match records
-    another one with not best matched records
+        Types of merges to resolve, accepted strings in list: 1tom, mto1, mtom
+
+    Notes
+    -----
+    This function will return 3 dataframes:
+    - Successfully matched df inclusive of all iqvia records
+    - Residuals df (i.e. all lab records not matched)
+    - Failed records df (records that have failed process)
     """
     # STEP 1 - RESOLVE FLAGS ---------------------------
     # include: failed_flag_mtom_swab
@@ -431,11 +423,13 @@ def merge_process_filtering(
             1,
         ).otherwise(F.col("best_match")),
     )
+
     for xtox in merge_combination:
         best_match_logic = (
             (F.col(xtox + "_" + merge_type) == 1)
             & (F.col("drop_flag_" + xtox + "_" + merge_type).isNull())
             & (F.col("failed_" + xtox + "_" + merge_type).isNull())
+            & (F.col(f"out_of_date_range_{merge_type}").isNull())
         )
         not_best_match_logic = (
             (F.col(xtox + "_" + merge_type) == 1)
@@ -446,45 +440,59 @@ def merge_process_filtering(
 
         df = df.withColumn("best_match", F.when(best_match_logic, 1).otherwise(F.col("best_match")))
         df = df.withColumn("not_best_match", F.when(not_best_match_logic, 1).otherwise(F.col("not_best_match")))
-        df = df.withColumn("failed_match", F.when(failed_match_logic, 1).otherwise(F.col("failed_match")))  # \
-        # .drop(*drop_list_columns)
+        df = df.withColumn("failed_match", F.when(failed_match_logic, 1).otherwise(F.col("failed_match")))
 
     if merge_type == "swab":
         df = df.withColumn(
             "failed_match", F.when(F.col("failed_flag_mtom_swab") == 1, 1).otherwise(F.col("failed_match"))
-        )  # failed_record
+        )
     elif merge_type == "antibody":
         df = df.withColumn(
             "failed_match",
             F.when((F.col("failed_flag_mtom_antibody") == 1) | (F.col("failed_flag_1tom_antibody") == 1), 1).otherwise(
                 F.col("failed_match")
             ),
-        )  # failed_record
+        )
 
     df = df.withColumn(
         "best_match", F.when(F.col("failed_match") == 1, None).otherwise(F.col("best_match"))
     ).withColumn("not_best_match", F.when(F.col("failed_match") == 1, None).otherwise(F.col("not_best_match")))
 
-    # STEP 2 -
     df_best_match = df.filter(F.col("best_match") == "1")
     df_not_best_match = df.filter(F.col("not_best_match") == "1")
     df_failed_records = df.filter(F.col("failed_match") == "1")
 
-    # STEP 3 -
+    # Created for filtering purposes later on, to ensure a 'best_match' is chosen over a 'not_best_match' record
     df_not_best_match = df_not_best_match.withColumn("not_best_match_for_union", F.lit(1).cast("integer"))
 
-    # out_of_date_range_swab
     df_lab_residuals = df_not_best_match.select(barcode_column_name, *lab_columns_list).distinct()
+    df_lab_residuals = df_lab_residuals.join(df_best_match, on="unique_pcr_test_id", how="left_anti")
 
-    # COMMENT: not necessary to drop lab_columns_list if going to be prepared to union with df_best_match
-    df_not_best_match = df_not_best_match.drop(*lab_columns_list)
-    df_failed_records_iqvia = df_failed_records.drop(*lab_columns_list).distinct()
+    drop_list_columns = [
+        f"out_of_date_range_{merge_type}",
+        f"1tom_{merge_type}",
+        f"mto1_{merge_type}",
+        f"mtom_{merge_type}",
+        f"drop_flag_1tom_{merge_type}",
+        f"drop_flag_mto1_{merge_type}",
+        f"drop_flag_mtom_{merge_type}",
+        f"failed_1tom_{merge_type}",
+        f"failed_mto1_{merge_type}",
+        f"failed_mtom_{merge_type}",
+        f"failed_flag_mtom_{merge_type}",
+        "best_match",
+        "not_best_match",
+        "failed_match",
+    ]
+    if merge_type == "antibody":
+        drop_list_columns.append("failed_flag_1tom_antibody")
 
-    # union process: best and not_best match
+    df_not_best_match = df_not_best_match.drop(*lab_columns_list).drop(*drop_list_columns).distinct()
+    df_failed_records_iqvia = df_failed_records.drop(*lab_columns_list).drop(*drop_list_columns).distinct()
+
     df_best_match, df_not_best_match = prepare_for_union(df_best_match, df_not_best_match)
     df_all_iqvia = df_best_match.unionByName(df_not_best_match)
 
-    # union process
     df_all_iqvia, df_failed_records_iqvia = prepare_for_union(df_all_iqvia, df_failed_records_iqvia)
     df_all_iqvia = df_all_iqvia.unionByName(df_failed_records_iqvia)
 
@@ -492,13 +500,9 @@ def merge_process_filtering(
     window = Window.partitionBy("unique_participant_response_id")
     df_all_iqvia = df_all_iqvia.withColumn("unique_id_count", F.count("unique_participant_response_id").over(window))
 
-    df_all_iqvia = df_all_iqvia.filter(
-        (F.col("not_best_match_for_union").isNull()) | (F.col("unique_id_count") == 1)
-    )  # \
-    # .drop('unique_id_count', 'not_best_match')
+    df_all_iqvia = df_all_iqvia.filter((F.col("not_best_match_for_union").isNull()) | (F.col("unique_id_count") == 1))
 
-    # DO: drop all internally created columns
-
+    drop_list_columns.extend(["not_best_match_for_union", "unique_id_count"])
     return (
         df_all_iqvia.drop(*drop_list_columns),
         df_lab_residuals.drop(*drop_list_columns),
