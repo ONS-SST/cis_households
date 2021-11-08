@@ -22,6 +22,7 @@ def blood_delta_ETL(resource_path: str, latest_only: bool = False, start_date: s
         file_path, blood_variable_name_map, blood_datetime_map, blood_validation_schema, transform_blood_delta
     )
     df = add_historical_fields(df)
+    df = df.select(sorted(df.columns))
     update_table_and_log_source_files(df, "transformed_blood_test_data", "blood_test_source_file")
     return df
 
@@ -38,19 +39,24 @@ def transform_blood_delta(df: DataFrame) -> DataFrame:
         column_name_to_assign="unique_antibody_test_id",
         concat_columns=["blood_sample_barcode", "antibody_test_plate_common_id", "antibody_test_well_id"],
     )
-    if "antibody_assay_flag" not in df.columns:
-        df = assign_column_uniform_value(df, "antibody_assay_flag", 1)
-
     return df
 
 
 def add_historical_fields(df: DataFrame):
-    """Add empty values for union with historical data."""
+    """
+    Add empty values for union with historical data. Also adds constant
+    values for continuation with historical data.
+    """
     historical_columns = {
         "siemens_antibody_test_result_classification": "string",
         "siemens_antibody_test_result_value": "float",
+        "tdi_antibody_test_result_value": "float",
         "lims_id": "string",
+        "plate_storage_method": "string",
     }
     for column, type in historical_columns.items():
-        df.withColumn(column, F.lit(None).cast(type))
+        if column not in df.columns:
+            df = df.withColumn(column, F.lit(None).cast(type))
+    if "antibody_assay_category" not in df.columns:
+        df = assign_column_uniform_value(df, "antibody_assay_category", "Post 2021-03-01")
     return df

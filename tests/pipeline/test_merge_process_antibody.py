@@ -21,10 +21,10 @@ def test_merge_process_antibody(spark_session):
 
     schema = """barcode string,
                 unique_antibody_test_id string,
-                date_visit string,
+                visit_date_string string,
                 date_received string,
                 antibody_result_recorded_datetime string,
-                antibody_test_result_classification string,
+                antibody_test_result_classification_s_protein string,
                 assay_siemens string,
                 tdi string"""
     data = [
@@ -44,9 +44,9 @@ def test_merge_process_antibody(spark_session):
                 barcode string,
                 unique_participant_response_id integer,
                 count_barcode_voyager integer,
-                date_visit string, date_received string,
+                visit_date_string string, date_received string,
                 antibody_result_recorded_datetime string,
-                antibody_test_result_classification string,
+                antibody_test_result_classification_s_protein string,
                 siemens string,
                 tdi string,
                 unique_antibody_test_id integer,
@@ -540,7 +540,7 @@ def test_merge_process_antibody(spark_session):
         survey_df=df_input_survey,
         labs_df=df_input_antibody,
         barcode_column_name="barcode",
-        visit_date_column_name="date_visit",
+        visit_date_column_name="visit_date_string",
         received_date_column_name="date_received",
     )
 
