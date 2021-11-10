@@ -256,7 +256,7 @@ def merge_previous_imputed_values(
     return df.drop(*[name for name in imputed_value_lookup_df.columns if name != id_column_name])
 
 
-def impute_known_or_suspected_covid_latest_date(
+def flag_for_impute_known_or_suspected_covid_latest_date(
     df: DataFrame,
     column_name_to_assign: str,
     order_by_columns: List[str],
@@ -264,6 +264,7 @@ def impute_known_or_suspected_covid_latest_date(
     contact_covid_date_column: str,
     visit_date_column: str,
 ):
+    # order_by_columns = [F.col(col).desc() for col in order_by_columns]
     window = Window.orderBy(*order_by_columns)
     df = df.withColumn("LAG", F.lag(contact_covid_column, 1).over(window))
     df = df.withColumn("DATE_LAG", F.lag(contact_covid_date_column, 1).over(window))
@@ -279,4 +280,27 @@ def impute_known_or_suspected_covid_latest_date(
             1,
         ).otherwise(None),
     )
+    df.show()
     return df.drop("LAG", "DATE_LAG")
+
+
+def impute_known_or_suspected_covid_latest_date(
+    df: DataFrame,
+    column_name_to_assign: str,
+    order_by_columns: List[str],
+    contact_covid_column: str,
+    contact_covid_date_column: str,
+    visit_date_column: str,
+):
+    order_by_columns = [F.col(col).desc() for col in order_by_columns]
+    window = Window.orderBy(*order_by_columns)
+    df = flag_for_impute_known_or_suspected_covid_latest_date(
+        df, "FLAG", order_by_columns, contact_covid_column, contact_covid_date_column, visit_date_column
+    )
+    df = df.withColumn(column_name_to_assign + "_LAG", F.lag(column_name_to_assign, 1).over(window))
+    df = df.withColumn(
+        column_name_to_assign,
+        F.when(F.col("FLAG") == 1, F.col(column_name_to_assign + "_LAG")).otherwise(F.col(column_name_to_assign)),
+    )
+    df.show()
+    return df
