@@ -89,7 +89,7 @@ def impute_and_flag(df: DataFrame, imputation_function: Callable, reference_colu
     Notes
     -----
     imputation_function is expected to create new column with the values to
-    be imputated, and NULL where imputation is not needed.
+    be imputed, and NULL where imputation is not needed.
     """
     df = imputation_function(
         df, column_name_to_assign="temporary_imputation_values", reference_column=reference_column, **kwargs
@@ -254,3 +254,29 @@ def merge_previous_imputed_values(
         )
 
     return df.drop(*[name for name in imputed_value_lookup_df.columns if name != id_column_name])
+
+
+def impute_known_or_suspected_covid_latest_date(
+    df: DataFrame,
+    column_name_to_assign: str,
+    order_by_columns: List[str],
+    contact_covid_column: str,
+    contact_covid_date_column: str,
+    visit_date_column: str,
+):
+    window = Window.orderBy(*order_by_columns)
+    df = df.withColumn("LAG", F.lag(contact_covid_column, 1).over(window))
+    df = df.withColumn("DATE_LAG", F.lag(contact_covid_date_column, 1).over(window))
+    df = df.withColumn(
+        column_name_to_assign,
+        F.when(
+            (F.col(contact_covid_column) == 1)
+            | (F.col("LAG") == 1)
+            | (F.col(contact_covid_date_column).isNull())
+            | (
+                (F.col(contact_covid_date_column) < F.col("DATE_LAG")) & (F.col(visit_date_column) >= F.col("DATE_LAG"))
+            ),
+            1,
+        ).otherwise(None),
+    )
+    return df.drop("LAG", "DATE_LAG")

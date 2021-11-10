@@ -1,10 +1,26 @@
 import re
 from itertools import chain
 from typing import List
+from typing import Union
 
 from pyspark.ml.feature import Bucketizer
 from pyspark.sql import DataFrame
 from pyspark.sql import functions as F
+
+
+def assign_latest_date(df: DataFrame, column_name_to_assign: str, date_columns: Union[List[str], str]):
+    """
+    Assign a column containing latest date from list of input columns contianing dates
+    Parameters
+    ----------
+    df
+    column_name_to_assign
+    date_columns
+    """
+    df = df.withColumn("TEMP", F.array(date_columns))
+    df = df.withColumn(column_name_to_assign, F.array_max(F.col("TEMP")))
+    output_df = df.drop("TEMP")
+    return output_df
 
 
 def assign_work_social_column(
