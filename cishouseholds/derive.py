@@ -7,6 +7,17 @@ from pyspark.sql import DataFrame
 from pyspark.sql import functions as F
 
 
+def assign_raw_column(df: DataFrame, reference_column: str):
+    """
+    Assign a column for contianing unedited raw values
+    Parameters
+    ----------
+    df
+    reference_column
+    """
+    return df.withColumn(reference_column + "_raw", F.col(reference_column))
+
+
 def assign_work_social_column(
     df: DataFrame, column_name_to_assign: str, work_sector_colum: str, care_home_column: str, direct_contact_column: str
 ):
