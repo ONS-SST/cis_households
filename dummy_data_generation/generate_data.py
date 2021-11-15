@@ -23,6 +23,13 @@ from dummy_data_generation.schemas import get_voyager_2_data_description
 _ = Field("en-gb", seed=42, providers=[Distribution, CustomRandom])
 
 
+def generate_blood_barcode_list(count):
+    """
+    Create a set of barcodes
+    """
+    return [_("random.custom_code", mask="ONS########", digit="#") for i in range(0, count)]
+
+
 def generate_survey_v0_data(directory, file_date, records, swab_barcodes, blood_barcodes):
     """
     Generate survey v0 data.
@@ -73,15 +80,15 @@ def generate_ons_gl_report_data(directory, file_date, records):
     return survey_ons_gl_report
 
 
-def generate_unioxf_medtest_data(directory, file_date, records):
+def generate_unioxf_medtest_data(barcode_list, directory, file_date, records):
     """
     Generate Oxford blood test data.
     """
-    s_gene_description = get_blood_data_description(_, "S")
+    s_gene_description = get_blood_data_description(_, "S", barcode_list)
     s_schema = Schema(schema=s_gene_description)
     survey_unioxf_medtest_s = pd.DataFrame(s_schema.create(iterations=records))
 
-    n_gene_description = get_blood_data_description(_, "N")
+    n_gene_description = get_blood_data_description(_, "N", barcode_list)
     n_schema = Schema(schema=n_gene_description)
     survey_unioxf_medtest_n = pd.DataFrame(n_schema.create(iterations=records))
 
@@ -89,11 +96,6 @@ def generate_unioxf_medtest_data(directory, file_date, records):
         if _("integer_number", start=0, end=100) > 15:
             for col in ["Serum Source ID", "Well ID"]:
                 survey_unioxf_medtest_n.at[row, col] = survey_unioxf_medtest_s.at[row, col]
-            print(
-                survey_unioxf_medtest_s.at[row, "Plate Barcode"][:-3]
-                + "N"
-                + survey_unioxf_medtest_s.at[row, "Plate Barcode"][-2:]
-            )
             survey_unioxf_medtest_n.at[row, "Plate Barcode"] = (
                 survey_unioxf_medtest_s.at[row, "Plate Barcode"][:-3]
                 + "N"
@@ -105,11 +107,11 @@ def generate_unioxf_medtest_data(directory, file_date, records):
     return survey_unioxf_medtest_s, survey_unioxf_medtest_n
 
 
-def generate_historic_bloods_data(directory, file_date, records, target):
+def generate_historic_bloods_data(barcode_list, directory, file_date, records, target):
     """
     Generate historic bloods file
     """
-    schema = Schema(schema=get_historical_blood_data_description(_))
+    schema = Schema(schema=get_historical_blood_data_description(_, barcode_list))
     historic_bloods_data = pd.DataFrame(schema.create(iterations=records))
 
     historic_bloods_data.to_csv(directory / f"historical_bloods_{target}_{file_date}.csv", index=False)
@@ -276,16 +278,18 @@ if __name__ == "__main__":
     lab_swabs_3 = generate_ons_gl_report_data(swab_dir, lab_date_2, 10)
     lab_swabs = pd.concat([lab_swabs_1, lab_swabs_2, lab_swabs_3])
 
-    lab_bloods_s_1, lab_bloods_n_1 = generate_unioxf_medtest_data(blood_dir, file_date, 10)
-    lab_bloods_s_2, lab_bloods_n_2 = generate_unioxf_medtest_data(blood_dir, lab_date_1, 10)
-    lab_bloods_s_3, lab_bloods_n_3 = generate_unioxf_medtest_data(blood_dir, lab_date_2, 10)
+    barcode_list = generate_blood_barcode_list(40)
+
+    lab_bloods_s_1, lab_bloods_n_1 = generate_unioxf_medtest_data(barcode_list, blood_dir, file_date, 10)
+    lab_bloods_s_2, lab_bloods_n_2 = generate_unioxf_medtest_data(barcode_list, blood_dir, lab_date_1, 10)
+    lab_bloods_s_3, lab_bloods_n_3 = generate_unioxf_medtest_data(barcode_list, blood_dir, lab_date_2, 10)
 
     lab_bloods = pd.concat(
         [lab_bloods_n_1, lab_bloods_n_2, lab_bloods_n_3, lab_bloods_s_1, lab_bloods_s_2, lab_bloods_s_3]
     )
 
-    historic_blood_n = generate_historic_bloods_data(historic_bloods_dir, file_date, 10, "N")
-    historic_blood_s = generate_historic_bloods_data(historic_bloods_dir, file_date, 10, "S")
+    historic_blood_n = generate_historic_bloods_data(barcode_list, historic_bloods_dir, file_date, 10, "N")
+    historic_blood_s = generate_historic_bloods_data(barcode_list, historic_bloods_dir, file_date, 10, "S")
 
     # unprocessed_bloods_data = generate_unprocessed_bloods_data(unprocessed_bloods_dir, file_date, 20)
     # northern_ireland_data = generate_northern_ireland_data(northern_ireland_dir, file_date, 20)
@@ -293,19 +297,15 @@ if __name__ == "__main__":
 
     # swab/blood barcode lists
     swab_barcode = lab_swabs["Sample"].unique().tolist()
-    blood_barcode = lab_bloods["Serum Source ID"].unique().tolist()
-    blood_barcode += historic_blood_n["blood_barcode_OX"].unique().tolist()
-    blood_barcode += historic_blood_s["blood_barcode_OX"].unique().tolist()
 
     swab_barcode = swab_barcode[int(round(len(swab_barcode) / 10)) :]  # noqa: E203
-    blood_barcode = blood_barcode[int(round(len(swab_barcode) / 10)) :]  # noqa: E203
 
     v0 = generate_survey_v0_data(
-        directory=survey_dir, file_date=file_date, records=50, swab_barcodes=swab_barcode, blood_barcodes=blood_barcode
+        directory=survey_dir, file_date=file_date, records=50, swab_barcodes=swab_barcode, blood_barcodes=barcode_list
     )
     v1 = generate_survey_v1_data(
-        directory=survey_dir, file_date=file_date, records=50, swab_barcodes=swab_barcode, blood_barcodes=blood_barcode
+        directory=survey_dir, file_date=file_date, records=50, swab_barcodes=swab_barcode, blood_barcodes=barcode_list
     )
     v2 = generate_survey_v2_data(
-        directory=survey_dir, file_date=file_date, records=50, swab_barcodes=swab_barcode, blood_barcodes=blood_barcode
+        directory=survey_dir, file_date=file_date, records=50, swab_barcodes=swab_barcode, blood_barcodes=barcode_list
     )

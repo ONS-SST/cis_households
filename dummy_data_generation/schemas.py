@@ -30,9 +30,9 @@ def get_swab_data_description(_):
     }
 
 
-def get_blood_data_description(_, target):
+def get_blood_data_description(_, target, barcode_list):
     return lambda: {  # noqa: E731
-        "Serum Source ID": _("random.custom_code", mask="ONS########", digit="#"),
+        "Serum Source ID": _("choice", items=barcode_list),
         "Blood Sample Type": _("choice", items=["Venous", "Capillary"]),
         "Plate Barcode": _("random.custom_code", mask=f"ONS_######C{target}-#", digit="#"),
         "Well ID": _("random.custom_code", mask="@##", char="@", digit="#"),
@@ -47,9 +47,9 @@ def get_blood_data_description(_, target):
     }
 
 
-def get_historical_blood_data_description(_):
+def get_historical_blood_data_description(_, barcode_list):
     return lambda: {  # noqa: E731
-        "blood_barcode_OX": _("random.custom_code", mask="ONS########", digit="#"),
+        "blood_barcode_OX": _("choice", items=barcode_list),
         "received_ox_date": _("datetime.formatted_datetime", fmt="%Y-%m-%d", start=2018, end=2022),
         "result_tdi": _("choice", items=["Positive", "Negative", "Could not process", "Insufficient sample", None]),
         "result_siemens": _("choice", items=["Positive", "Negative", "Insufficient sample", None]),
