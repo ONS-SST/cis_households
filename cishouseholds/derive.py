@@ -8,6 +8,31 @@ from pyspark.sql import functions as F
 from pyspark.sql import Window
 
 
+def assign_contact_known_or_suspected_covid_type(
+    df: DataFrame,
+    column_name_to_assign: str,
+    contact_columns: List[str],
+):
+    """
+    Assign variable the corresponding type of covid to the type of encounter
+    """
+    df = df.withColumn(
+        column_name_to_assign,
+        F.when(
+            F.col(contact_columns["any_covid_date"]) == F.col(contact_columns["known_covid_date"]),  # type: ignore
+            F.col(contact_columns["known_covid_type"]),  # type: ignore
+        ).otherwise(
+            F.when(
+                F.col(contact_columns["any_covid_date"])  # type: ignore
+                == F.col(  # type: ignore
+                    contact_columns["suspect_covid_date"]  # type: ignore
+                ),  # type: ignore
+                F.col(contact_columns["suspect_covid_type"]),  # type: ignore
+            ).otherwise(None)
+        ),
+    )
+
+
 def assign_proportion_column(
     df: DataFrame, column_name_to_assign: str, numerator_column: str, denominator_column: str, numerator_selector: str
 ):
