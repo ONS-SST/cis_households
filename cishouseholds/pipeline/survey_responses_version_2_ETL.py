@@ -9,6 +9,7 @@ from cishouseholds.derive import assign_column_to_date_string
 from cishouseholds.derive import assign_column_uniform_value
 from cishouseholds.derive import assign_consent_code
 from cishouseholds.derive import assign_date_difference
+from cishouseholds.derive import assign_ever_had_long_term_health_condition_or_disabled
 from cishouseholds.derive import assign_filename_column
 from cishouseholds.derive import assign_named_buckets
 from cishouseholds.derive import assign_outward_postcode
@@ -89,7 +90,6 @@ def transform_survey_responses_generic(df: DataFrame) -> DataFrame:
     # df = placeholder_for_derivation_number_17(df, "country_barcode", ["swab_barcode_cleaned","blood_barcode_cleaned"],
     #  {0:"ONS", 1:"ONW", 2:"ONN", 3:"ONC"})
     df = derive_age_columns(df)
-
     return df
 
 
@@ -178,6 +178,12 @@ def derive_additional_v1_2_columns(df: DataFrame) -> DataFrame:
         symptoms_bool_column="symptoms_last_7_days_cghfevamn_symptom_group",
         visit_date_column="visit_datetime",
         visit_id_column="visit_id",
+    )
+    df = assign_ever_had_long_term_health_condition_or_disabled(
+        df=df,
+        column_name_to_assign="ever_had_long_term_health_condition_or_disabled",
+        reduce_activity_column="illness_reduces_activity_or_ability",
+        illness_column="illness_lasting_over_12_months",
     )
     return df
 

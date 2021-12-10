@@ -9,6 +9,28 @@ from pyspark.sql import functions as F
 from pyspark.sql import Window
 
 
+def assign_ever_had_long_term_health_condition_or_disabled(
+    df: DataFrame, column_name_to_assign: str, illness_column: str, reduce_activity_column
+) -> DataFrame:
+    """
+    Assign specific logic for variable ever_had_long_term_health_condition_or_disabled
+    Parameters
+    ----------
+    df
+    column_name_to_assign
+    illness_column
+    reduce_activity_column
+    """
+    df = df.withColumn(
+        column_name_to_assign,
+        F.when(
+            (F.col(illness_column) == "Yes") & (F.col(reduce_activity_column).isin("Yes, a little", "Yes, a lot")),
+            "Yes",
+        ).otherwise("No"),
+    )
+    return df
+
+
 def assign_column_given_proportion(
     df: DataFrame,
     column_name_to_assign: str,
