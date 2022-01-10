@@ -22,18 +22,21 @@ from cishouseholds.pipeline.pipeline_stages import register_pipeline_stage
 
 @register_pipeline_stage("generate_outputs")
 def generate_outputs():
+    config = get_config()
     output_datetime = datetime.today().strftime("%Y%m%d%H%M%S")
-    output_directory = Path(get_config()["output_directory"]) / output_datetime
+    output_directory = Path(config["output_directory"]) / output_datetime
     # TODO: Check that output dir exists
 
-    all_visits_df = extract_from_table("response_level_records")
-    participant_df = extract_from_table("participant_level_with_vaccination_data")
+    linked_df = extract_from_table(config["table_names"]["input"]["merged_antibody_swab"])
 
-    linked_df = all_visits_df.join(participant_df, on="participant_id", how="left")
+    #    all_visits_df = extract_from_table("response_level_records")
+    #    participant_df = extract_from_table("participant_level_with_vaccination_data")
+
+    #    linked_df = all_visits_df.join(participant_df, on="participant_id", how="left")
     linked_df = linked_df.withColumn(
         "completed_visits_subset",
         F.when(
-            (F.col("visit_status") == "Completed")
+            (F.col("participant_visit_status") == "Completed")
             | (F.col("blood_sample_barcode").isNotNull() | (F.col("swab_sample_barcode").isNotNull())),
             True,
         ).otherwise(False),

@@ -8,7 +8,7 @@ fields:
   nullable: true
   type: string
 - metadata: {}
-  name: type_of_visit
+  name: visit_type
   nullable: true
   type: string
 - metadata: {}
@@ -52,11 +52,11 @@ fields:
   nullable: true
   type: string
 - metadata: {}
-  name: no_participants_not_present
+  name: not_present_household_count
   nullable: true
-  type: double
+  type: string
 - metadata: {}
-  name: reason_participants_not_present
+  name: not_present_household_reason
   nullable: true
   type: string
 - metadata: {}
@@ -312,11 +312,11 @@ fields:
   nullable: true
   type: string
 - metadata: {}
-  name: work_health_care
+  name: work_health_care_v1_v2
   nullable: true
   type: string
 - metadata: {}
-  name: work_direct_contact_persons
+  name: work_direct_contact_patients_clients
   nullable: true
   type: string
 - metadata: {}
@@ -352,7 +352,7 @@ fields:
   nullable: true
   type: string
 - metadata: {}
-  name: smoke_no
+  name: smokes_nothing_now
   nullable: true
   type: string
 - metadata: {}
@@ -360,7 +360,7 @@ fields:
   nullable: true
   type: string
 - metadata: {}
-  name: work_status
+  name: work_status_v1
   nullable: true
   type: string
 - metadata: {}
@@ -380,7 +380,7 @@ fields:
   nullable: true
   type: string
 - metadata: {}
-  name: had_symptoms_last_7_days
+  name: symptoms_last_7_days_any
   nullable: true
   type: string
 - metadata: {}
@@ -440,7 +440,7 @@ fields:
   nullable: true
   type: string
 - metadata: {}
-  name: is_self_isolating
+  name: is_self_isolating_detailed
   nullable: true
   type: string
 - metadata: {}
@@ -656,6 +656,46 @@ fields:
   nullable: false
   type: string
 - metadata: {}
+  name: think_had_covid_any_symptoms_raw
+  nullable: true
+  type: string
+- metadata: {}
+  name: symptoms_last_7_days_any_raw
+  nullable: true
+  type: string
+- metadata: {}
+  name: work_main_job_title_raw
+  nullable: true
+  type: string
+- metadata: {}
+  name: work_main_job_role_raw
+  nullable: true
+  type: string
+- metadata: {}
+  name: work_health_care_v1_v2_raw
+  nullable: true
+  type: string
+- metadata: {}
+  name: work_status_v1_raw
+  nullable: true
+  type: string
+- metadata: {}
+  name: work_not_from_home_days_per_week_raw
+  nullable: true
+  type: string
+- metadata: {}
+  name: work_location_raw
+  nullable: true
+  type: string
+- metadata: {}
+  name: sex_raw
+  nullable: true
+  type: string
+- metadata: {}
+  name: withdrawal_reason_raw
+  nullable: true
+  type: string
+- metadata: {}
   name: unique_participant_response_id
   nullable: false
   type: string
@@ -671,6 +711,14 @@ fields:
   name: consent
   nullable: true
   type: double
+- metadata: {}
+  name: ethnicity_group
+  nullable: true
+  type: string
+- metadata: {}
+  name: ethnicity_white
+  nullable: false
+  type: string
 - metadata: {}
   name: visit_date_string
   nullable: true
@@ -696,6 +744,22 @@ fields:
   nullable: false
   type: string
 - metadata: {}
+  name: think_have_covid_cghfevamn_symptom_group
+  nullable: true
+  type: string
+- metadata: {}
+  name: symptoms_last_7_days_cghfevamn_symptom_group
+  nullable: true
+  type: string
+- metadata: {}
+  name: symptoms_last_7_days_symptom_count
+  nullable: false
+  type: integer
+- metadata: {}
+  name: symptoms_since_last_visit_count
+  nullable: false
+  type: integer
+- metadata: {}
   name: age_at_visit
   nullable: true
   type: long
@@ -720,7 +784,11 @@ fields:
   nullable: true
   type: integer
 - metadata: {}
-  name: work_patient_facing_now
+  name: days_since_think_had_covid_group
+  nullable: true
+  type: string
+- metadata: {}
+  name: self_isolating
   nullable: true
   type: string
 type: struct
