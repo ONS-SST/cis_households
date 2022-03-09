@@ -303,7 +303,7 @@ def update_from_csv_lookup(df: DataFrame, csv_filepath: str, id_column: str):
         column in dataframe containing unique identifier
     """
     spark = get_or_create_spark_session()
-    csv = spark.read.csv(csv_filepath, header=True)
+    csv = spark.read.csv(csv_filepath, header=True, sep="|")
     csv = (
         csv.groupBy("id")
         .pivot("target_column_name")
