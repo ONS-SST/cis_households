@@ -975,10 +975,24 @@ def fill_forwards_transformations(df):
     #            "Student",
     #        ],
     #    )
-    df = update_to_value_if_any_not_null(
-        df, "been_outside_uk_since_last_visit", "Yes", ["been_outside_uk_last_country", "been_outside_uk_last_date"]
-    )
 
+    list_country_var = ["been_outside_uk_last_country", "been_outside_uk_last_date"]
+
+    df = update_to_value_if_any_not_null(
+        df=df,
+        column_name_to_assign="been_outside_uk_since_last_visit",
+        value_to_assign="Yes",
+        column_list=list_country_var,
+    )
+    # TODO: should country var be using fill_forward_only_to_nulls() or fill_forward_from_last_change()?
+    # df = fill_forward_only_to_nulls(
+    #     df=df,
+    #     id="participant_id",
+    #     date="visit_date", # or visit_datetime
+    #     changed="been_outside_uk_last_country",
+    #     list_fill_forward=list_country_var,
+    #     changed_positive_value="Yes",
+    # )
     df = fill_forward_from_last_change(
         df=df,
         fill_forward_columns=[
