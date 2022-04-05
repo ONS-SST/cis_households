@@ -88,7 +88,9 @@ def generate_weights(auxillary_dfs, table_or_path):
 
 
 def join_and_process_lookups(df: DataFrame, cis_phase_df: DataFrame, master_sample_df: DataFrame):
-    """ """
+    """
+    Join main dataset with cisphase lookup and the master sample dataset to attach relevant data
+    """
     df = df.join(
         master_sample_df.select("postcode", "ons_household_id").withColumnRenamed("postcode", "postcode_from_master"),
         on="ons_household_id",
