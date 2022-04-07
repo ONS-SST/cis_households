@@ -98,7 +98,7 @@ def update_person_count_from_ages(df: DataFrame, column_name_to_assign: str, col
 
     Parameters
     ----------
-    column_patter
+    column_pattern
         regex pattern to match columns that should be counted
 
     """
