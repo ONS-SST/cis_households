@@ -10,54 +10,107 @@ from pyspark.sql import functions as F
 from pyspark.sql.types import DoubleType
 from pyspark.sql.window import Window
 
-from cishouseholds.derive import assign_random_day_in_month
+from cishouseholds.edit import update_column_values_from_map
 
 
-def impute_outside_uk_columns(
+def impute_contact_covid(
     df: DataFrame,
-    outside_uk_date_column: str,
-    outside_country_column: str,
-    outside_uk_since_column: str,
-    visit_datetime_column: str,
-    id_column: str,
+    participant_id_column: str,
+    covid_date_column: str,
+    visit_date_column: str,
+    carry_forward_columns: List[str],
+    contact_column: str,
 ):
-    df = df.withColumn(
-        outside_uk_since_column,
-        F.when(F.col(outside_uk_date_column) < F.lit("2020/04/01"), "No").otherwise(F.col(outside_uk_since_column)),
+    """ """
+    # get latest covid date
+    date_exists_df = df.select(participant_id_column, covid_date_column, *carry_forward_columns)
+    for col in carry_forward_columns:
+        date_exists_df = date_exists_df.withColumnRenamed(col, f"{col}_ref")
+
+    transformed_df = df.join(
+        date_exists_df.withColumnRenamed(covid_date_column, f"{covid_date_column}_ref"),
+        on=participant_id_column,
+        how="left",
     )
-    df = df.withColumn(
-        outside_uk_date_column,
-        F.when(F.col(outside_uk_date_column) < F.lit("2020/04/01"), None).otherwise(F.col(outside_uk_date_column)),
-    )
-    df = df.withColumn(
-        outside_country_column,
-        F.when(F.col(outside_uk_date_column) < F.lit("2020/04/01"), None).otherwise(F.col(outside_country_column)),
+    transformed_df = transformed_df.withColumn(
+        f"{covid_date_column}_ref",
+        F.when(
+            F.col(f"{covid_date_column}_ref") < F.col(visit_date_column), F.col(f"{covid_date_column}_ref")
+        ).otherwise(None),
     )
 
-    window = (
-        Window.partitionBy(id_column)
-        .orderBy(visit_datetime_column)
-        .rowsBetween(Window.unboundedPreceding, Window.currentRow)
+    window = Window.partitionBy(participant_id_column, visit_date_column)
+    transformed_df = transformed_df.withColumn(covid_date_column, F.max(F.col(f"{covid_date_column}_ref")).over(window))
+    reference_columns = [f"{col}_ref" for col in carry_forward_columns]
+    transformed_df = (
+        transformed_df.filter(
+            (
+                F.col(f"{covid_date_column}_ref").eqNullSafe(F.col(covid_date_column))
+                & (F.col(covid_date_column).isNotNull())
+            )
+            | (
+                F.col(covid_date_column).isNull()
+                & (
+                    F.size(F.array_intersect(F.array(*carry_forward_columns), F.array(*reference_columns)))
+                    == len(carry_forward_columns)
+                )
+            )
+        )
+        .distinct()
+        .drop(f"{covid_date_column}_ref")
     )
-    df = df.withColumn(
-        outside_uk_since_column,
-        F.when(
-            F.col(outside_uk_since_column) != "Yes", F.last(outside_uk_since_column, ignorenulls=True).over(window)
-        ).otherwise(F.col(outside_uk_since_column)),
+    for col, ref_col in zip(carry_forward_columns, reference_columns):
+        transformed_df = transformed_df.drop(col).withColumnRenamed(ref_col, col)
+    transformed_df = transformed_df.withColumn(
+        contact_column, F.when(F.col(covid_date_column).isNotNull(), "Yes").otherwise("No")
     )
-    df = df.withColumn(
-        outside_uk_date_column,
-        F.when(
-            F.col(outside_uk_since_column) != "Yes", F.last(outside_uk_date_column, ignorenulls=True).over(window)
-        ).otherwise(F.col(outside_uk_date_column)),
+    return transformed_df
+
+
+def impute_think_had_covid(
+    df: DataFrame,
+    participant_id_column: str,
+    date_column: str,
+    visit_date_column: str,
+    type_column: str,
+    contact_column: str,
+    hierarchy_map: dict,
+):
+    """
+    hierarchy map
+        specify a positional rank of the type column to define how occupancies of  duplicate visit dates will be
+        disambiguated
+    """
+    date_exists_df = df.select(participant_id_column, date_column)
+    transformed_df = df.join(
+        date_exists_df.withColumnRenamed(date_column, f"{date_column}_ref"), on=participant_id_column, how="left"
     )
-    df = df.withColumn(
-        outside_country_column,
-        F.when(
-            F.col(outside_uk_since_column) != "Yes", F.last(outside_country_column, ignorenulls=True).over(window)
-        ).otherwise(F.col(outside_country_column)),
+    transformed_df = transformed_df.withColumn(
+        f"{date_column}_ref",
+        F.when(F.col(f"{date_column}_ref") < F.col(visit_date_column), F.col(f"{date_column}_ref")).otherwise(None),
     )
-    return df
+
+    window = Window.partitionBy(participant_id_column, visit_date_column, f"{date_column}_ref")
+    transformed_df = update_column_values_from_map(transformed_df, type_column, hierarchy_map)
+    transformed_df = transformed_df.withColumn(type_column, F.min(type_column).over(window))
+
+    reverse_map = {value: key for key, value in hierarchy_map.items()}
+
+    transformed_df = update_column_values_from_map(transformed_df, type_column, reverse_map)
+
+    window = Window.partitionBy(participant_id_column, visit_date_column)
+    transformed_df = transformed_df.withColumn(date_column, F.max(F.col(f"{date_column}_ref")).over(window))
+    transformed_df = (
+        transformed_df.filter(F.col(f"{date_column}_ref").eqNullSafe(F.col(date_column)))
+        .distinct()
+        .drop(f"{date_column}_ref")
+    )
+
+    transformed_df = transformed_df.withColumn(
+        contact_column, F.when(F.col(visit_date_column) >= F.col(date_column), "Yes").otherwise("No")
+    )
+
+    return transformed_df
 
 
 def impute_visit_datetime(df: DataFrame, visit_datetime_column: str, sampled_datetime_column: str) -> DataFrame:
