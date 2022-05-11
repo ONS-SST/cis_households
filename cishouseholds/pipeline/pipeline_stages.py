@@ -47,6 +47,8 @@ from cishouseholds.pipeline.merge_process import merge_process_validation
 from cishouseholds.pipeline.post_merge_processing import derive_overall_vaccination
 from cishouseholds.pipeline.post_merge_processing import impute_key_columns
 from cishouseholds.pipeline.post_merge_processing import nims_transformations
+from cishouseholds.pipeline.reporting import dfs_to_bytes_excel
+from cishouseholds.pipeline.reporting import multiple_visit_1_day
 from cishouseholds.pipeline.survey_responses_version_2_ETL import fill_forwards_transformations
 from cishouseholds.pipeline.survey_responses_version_2_ETL import union_dependent_cleaning
 from cishouseholds.pipeline.survey_responses_version_2_ETL import union_dependent_derivations
@@ -1006,6 +1008,34 @@ def report(
     write_string_to_file(
         output.getbuffer(), f"{output_directory}/report_output_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.xlsx"
     )
+
+
+@register_pipeline_stage("report_iqvia")
+def report_iqvia(swab_residuals_table: str, blood_residuals_table: str, survey_response_table):
+    """ " """
+    swab_residuals_df = extract_from_table(swab_residuals_table)
+    blood_residuals_df = extract_from_table(blood_residuals_table)
+    swab_residuals_df = swab_residuals_df.filter(F.col("pcr_result_classification") != "positive")
+    survey_response_table = extract_from_table(survey_response_table)
+
+    modified_barcodes_df = survey_response_table.filter(
+        F.col("swab_sample_barcode_edited_flag") == 1 | F.col("blood_sample_barcode_edited_flag") == 1
+    ).select("blood_sample_barcode", "swab_sample_barcode", "")
+
+    multiple_visit_1_day_df = multiple_visit_1_day(
+        df=survey_response_table,
+        participant_id="participant_id",
+        visit_id="visit_id",
+        date_column="date",
+        datetime_column="datetime",
+    )
+    sheet_df_map = {
+        "unlinked swabs": swab_residuals_df,
+        "unlinked bloods": blood_residuals_df,
+        "modified barcodes": modified_barcodes_df,
+        "participant 1-day multiple visit": multiple_visit_1_day_df,
+    }
+    output = dfs_to_bytes_excel(sheet_df_map)
 
 
 @register_pipeline_stage("record_level_interface")
