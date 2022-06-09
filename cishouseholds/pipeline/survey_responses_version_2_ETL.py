@@ -573,7 +573,7 @@ def transform_survey_responses_version_2_delta(df: DataFrame) -> DataFrame:
 def symptom_column_transformations(df):
     df = count_value_occurrences_in_column_subset_row_wise(
         df=df,
-        column_name_to_assign="think_have_covid_symptom_symptom_count",
+        column_name_to_assign="think_have_covid_symptom_count",
         selection_columns=[
             "think_have_covid_symptom_fever",
             "think_have_covid_symptom_muscle_ache",
@@ -635,7 +635,7 @@ def symptom_column_transformations(df):
     # df = update_think_have_covid_symptom_any(
     #     df=df,
     #     column_name_to_update="think_have_covid_symptom_any",
-    #     count_reference_column="think_have_covid_symptom_symptom_count",
+    #     count_reference_column="think_have_covid_symptom_count",
     # )
 
     # df = assign_true_if_any(
@@ -656,7 +656,7 @@ def symptom_column_transformations(df):
 
     # df = assign_true_if_any(
     #     df=df,
-    #     column_name_to_assign="think_have_covid_symptom_cghfevamn_symptom_group",
+    #     column_name_to_assign="think_have_covid_cghfevamn_symptom_group",
     #     reference_columns=[
     #         "think_have_covid_symptom_cough",
     #         "think_have_covid_symptom_fever",
@@ -691,7 +691,7 @@ def symptom_column_transformations(df):
     #     df=df,
     #     column_name_to_assign="symptoms_around_cghfevamn_symptom_group",
     #     id_column="participant_id",
-    #     symptoms_bool_column="think_have_covid_symptom_cghfevamn_symptom_group",
+    #     symptoms_bool_column="think_have_covid_cghfevamn_symptom_group",
     #     visit_date_column="visit_datetime",
     #     visit_id_column="visit_id",
     # )
@@ -704,10 +704,12 @@ def union_dependent_cleaning(df):
             "African": "Black,Caribbean,African-African",
             "Caribbean": "Black,Caribbean,Afro-Caribbean",
             "Any other Black or African or Caribbean background": "Any other Black background",
+            "Any other Black| African| Carribbean": "Any other Black background",
             "Any other Mixed/Multiple background": "Any other Mixed background",
             "Bangladeshi": "Asian or Asian British-Bangladeshi",
             "Chinese": "Asian or Asian British-Chinese",
             "English, Welsh, Scottish, Northern Irish or British": "White-British",
+            "English| Welsh| Scottish| Northern Irish or British": "White-British",
             "Indian": "Asian or Asian British-Indian",
             "Irish": "White-Irish",
             "Pakistani": "Asian or Asian British-Pakistani",
@@ -718,6 +720,7 @@ def union_dependent_cleaning(df):
             "White-Roma": "White-Gypsy or Irish Traveller",
             "Gypsy or Irish Traveller": "White-Gypsy or Irish Traveller",
             "Arab": "Other ethnic group-Arab",
+            "Any other white": "Any other white background",
         },
         "participant_withdrawal_reason": {
             "Bad experience with tester / survey": "Bad experience with interviewer/survey",
@@ -792,14 +795,15 @@ def union_dependent_derivations(df):
         ],
         "Other": ["Other ethnic group-Arab", "Any other ethnic group"],
     }
-    df = df.witColumn(
-        "swab_sample_barcode_combined",
-        F.coalesce(F.col("swab_sample_barcode"), F.col("swab_sample_barcode_user_entered")),
-    )
-    df = df.witColumn(
-        "blood_sample_barcode_combined",
-        F.coalesce(F.col("blood_sample_barcode"), F.col("blood_sample_barcode_user_entered")),
-    )
+    if "swab_sample_barcode_user_entered" in df.columns:
+        df = df.withColumn(
+            "swab_sample_barcode_combined",
+            F.coalesce(F.col("swab_sample_barcode"), F.col("swab_sample_barcode_user_entered")),
+        )
+        df = df.withColumn(
+            "blood_sample_barcode_combined",
+            F.coalesce(F.col("blood_sample_barcode"), F.col("blood_sample_barcode_user_entered")),
+        )
     df = assign_column_from_mapped_list_key(
         df=df, column_name_to_assign="ethnicity_group", reference_column="ethnicity", map=ethnicity_map
     )
@@ -867,7 +871,7 @@ def union_dependent_derivations(df):
     # df = assign_any_symptoms_around_visit(
     #     df=df,
     #     column_name_to_assign="symptoms_around_cghfevamn_symptom_group",
-    #     symptoms_bool_column="think_have_covid_symptom_cghfevamn_symptom_group",
+    #     symptoms_bool_column="think_have_covid_cghfevamn_symptom_group",
     #     id_column="participant_id",
     #     visit_date_column="visit_datetime",
     #     visit_id_column="visit_id",
