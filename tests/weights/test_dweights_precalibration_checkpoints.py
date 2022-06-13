@@ -99,7 +99,9 @@ def test_precal_and_design_weights_checkpoints(spark_session):
         antibody_group_by_columns=["country", "groupby", "sample_group"],
         rounding_value=18,
     )
+    import pdb
 
+    pdb.set_trace()
     assert swab_weight_column_type is True
     assert antibody_weight_column_type is True
     assert antibody_design_weights_sum_to_population is True
